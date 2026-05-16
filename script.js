@@ -1597,7 +1597,7 @@ function SuccessScreen({ name, onReset, type }) {
       </p>
       {type === "reserve" && (
         <p style={{ marginTop: 12, fontSize: 13, opacity: 0.6, color: "var(--navy-ink)", fontFamily: "var(--mono)", letterSpacing: "0.08em" }}>
-          REMINDER: Please email any photos (rig, insurance, CDL) directly to {EMAIL}
+          Documents uploaded to Google Drive will be reviewed with your request.
         </p>
       )}
       <button onClick={onReset} className="btn btn-ghost" style={{ marginTop: 28 }}>
@@ -1705,9 +1705,31 @@ function ReservationForm() {
     startDate: "", schedule: "Daily In/Out", hazmat: "No",
     acknowledged: false,
   };
+  const blankUploads = { rig: { status: "idle" }, insurance: { status: "idle" }, cdl: { status: "idle" } };
   const [form, setForm] = useState(blank);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [uploads, setUploads] = useState(blankUploads);
+
+  const handleUpload = async (docKey, file) => {
+    if (!file) return;
+    setUploads(u => ({ ...u, [docKey]: { status: "uploading" } }));
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("docType", docKey === "rig" ? "rig_photo" : docKey);
+    fd.append("driverName", form.driverName || "Applicant");
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.ok) {
+        setUploads(u => ({ ...u, [docKey]: { status: "done", fileName: data.fileName } }));
+      } else {
+        setUploads(u => ({ ...u, [docKey]: { status: "error", error: data.error } }));
+      }
+    } catch (err) {
+      setUploads(u => ({ ...u, [docKey]: { status: "error", error: err.message } }));
+    }
+  };
 
   const upd = (k) => (e) => {
     const val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
@@ -1752,7 +1774,7 @@ function ReservationForm() {
       `TYPICAL SCHEDULE: ${form.schedule}`,
       `HAULS HAZMAT: ${form.hazmat}`,
       "",
-      "NOTE: Please email photos of your rig, proof of insurance, and CDL/Driver's License to this address.",
+      `DOCUMENTS UPLOADED: Rig Photo — ${uploads.rig.status === "done" ? "✓" : "not uploaded"} | Insurance — ${uploads.insurance.status === "done" ? "✓" : "not uploaded"} | CDL — ${uploads.cdl.status === "done" ? "✓" : "not uploaded"}`,
       "",
       "Applicant acknowledged: This is a reservation request and not a binding lease.",
     ].join("\n");
@@ -1763,7 +1785,7 @@ function ReservationForm() {
 
   if (submitted) {
     const firstName = form.driverName.split(" ")[0];
-    return <SuccessScreen name={firstName} onReset={() => { setSubmitted(false); setForm(blank); }} type="reserve" />;
+    return <SuccessScreen name={firstName} onReset={() => { setSubmitted(false); setForm(blank); setUploads(blankUploads); }} type="reserve" />;
   }
 
   return (
@@ -1830,26 +1852,118 @@ function ReservationForm() {
         </div>
       </div>
 
-      {/* File upload note */}
+      {/* Document uploads */}
       <div style={{
-        padding: "16px",
-        background: "rgba(45,108,179,0.06)",
         border: "1px solid rgba(45,108,179,0.2)",
         borderLeft: "3px solid var(--steel-blue)",
-        fontSize: 14,
-        lineHeight: 1.55,
-        color: "var(--navy-ink)",
+        background: "rgba(45,108,179,0.04)",
       }}>
-        <strong style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", display: "block", marginBottom: 6, color: "var(--steel-blue)" }}>
-          Documents required
-        </strong>
-        Please email the following directly to <a href={`mailto:${EMAIL}`} style={{ borderBottom: "1px solid currentColor", color: "var(--steel-blue)" }}>{EMAIL}</a> after submitting:
-        <ul style={{ margin: "8px 0 0", paddingLeft: 20, display: "flex", flexDirection: "column", gap: 4 }}>
-          <li>Photo of your rig</li>
-          <li>Proof of insurance</li>
-          <li>CDL / Driver's License</li>
-        </ul>
+        <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid rgba(45,108,179,0.12)" }}>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--steel-blue)", fontWeight: 600 }}>
+            Documents required
+          </span>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.08em", color: "var(--navy-ink)", opacity: 0.5, marginLeft: 10 }}>
+            Uploads go directly to our secure Google Drive
+          </span>
+        </div>
+
+        {[
+          { key: "rig",      label: "Photo of Rig",          accept: "image/*,.pdf" },
+          { key: "insurance", label: "Proof of Insurance",   accept: "image/*,.pdf" },
+          { key: "cdl",      label: "CDL / Driver's License", accept: "image/*,.pdf" },
+        ].map(({ key, label, accept }, idx, arr) => {
+          const u = uploads[key];
+          const isDone = u.status === "done";
+          const isUploading = u.status === "uploading";
+          const isError = u.status === "error";
+          return (
+            <div key={key} style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "13px 16px",
+              borderBottom: idx < arr.length - 1 ? "1px solid rgba(26,44,78,0.08)" : "none",
+              background: isDone ? "rgba(34,197,94,0.04)" : "transparent",
+              transition: "background .3s ease",
+            }}>
+              {/* Left: status icon + label */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{
+                  width: 18, height: 18, flexShrink: 0,
+                  color: isDone ? "#16a34a" : "rgba(26,44,78,0.2)",
+                  transition: "color .3s ease",
+                }}>
+                  {Icon.check}
+                </span>
+                <div>
+                  <span style={{
+                    fontSize: 14,
+                    color: "var(--navy-ink)",
+                    fontWeight: isDone ? 600 : 400,
+                    transition: "font-weight .2s",
+                  }}>{label}</span>
+                  {isDone && (
+                    <div style={{ fontSize: 11, fontFamily: "var(--mono)", color: "#16a34a", letterSpacing: "0.06em", marginTop: 1 }}>
+                      Uploaded
+                    </div>
+                  )}
+                  {isError && (
+                    <div style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--rust)", letterSpacing: "0.06em", marginTop: 1 }}>
+                      {u.error || "Upload failed — try again"}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: button */}
+              <div style={{ flexShrink: 0 }}>
+                <input
+                  type="file"
+                  id={`upload-${key}`}
+                  accept={accept}
+                  style={{ display: "none" }}
+                  onChange={e => { handleUpload(key, e.target.files[0]); e.target.value = ""; }}
+                />
+                {isUploading ? (
+                  <span style={{
+                    fontFamily: "var(--mono)", fontSize: 11, letterSpacing: "0.1em",
+                    textTransform: "uppercase", color: "var(--steel-blue)",
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: "spin 1s linear infinite" }}>
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    Uploading…
+                  </span>
+                ) : (
+                  <label htmlFor={`upload-${key}`} style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "8px 14px",
+                    fontFamily: "var(--sans)", fontWeight: 600, fontSize: 12,
+                    letterSpacing: "0.05em", textTransform: "uppercase",
+                    border: "1px solid",
+                    borderColor: isDone ? "#16a34a" : "rgba(26,44,78,0.25)",
+                    color: isDone ? "#16a34a" : "var(--navy)",
+                    background: "transparent",
+                    borderRadius: 2, cursor: "pointer",
+                    transition: "border-color .2s, color .2s",
+                  }}>
+                    {isDone ? "Replace" : (
+                      <>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Upload
+                      </>
+                    )}
+                  </label>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Acknowledgement */}
       <div className={errors.acknowledged ? "error" : ""}>
