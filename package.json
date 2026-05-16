@@ -1,0 +1,16 @@
+{
+  "name": "iron-gate-logistics",
+  "version": "1.0.0",
+  "description": "Iron Gate Logistics — Secure Truck & Trailer Parking | Cottage Grove, OR",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
