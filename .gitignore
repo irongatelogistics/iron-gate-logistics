@@ -2,8 +2,8 @@ node_modules/
 .DS_Store
 *.log
 
-# Google credentials — never commit these
+# Credentials — never commit
+.env
 credentials.json
 oauth_credentials.json
 token.json
-.env

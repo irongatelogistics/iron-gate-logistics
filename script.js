@@ -1717,9 +1717,73 @@ function ReservationForm() {
     startDate: "", schedule: "Daily In/Out", hazmat: "No",
     acknowledged: false,
   };
+  const blankUploads = {
+    rig:      { status: "idle", progress: 0 },
+    insurance:{ status: "idle", progress: 0 },
+    cdl:      { status: "idle", progress: 0 },
+  };
+
   const [form, setForm] = useState(blank);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [uploads, setUploads] = useState(blankUploads);
+
+  const DOC_CONFIG = [
+    { key: "rig",       label: "Photo of Rig",           accept: "image/jpeg,image/png,application/pdf", maxMB: 10, docType: "rig_photo" },
+    { key: "insurance", label: "Proof of Insurance",      accept: "image/jpeg,image/png,application/pdf", maxMB: 10, docType: "insurance" },
+    { key: "cdl",       label: "CDL / Driver's License",  accept: "image/jpeg,image/png,application/pdf", maxMB: 5,  docType: "cdl" },
+  ];
+
+  const handleUpload = (docKey, docType, maxMB, file) => {
+    if (!file) return;
+
+    const allowed = ["image/jpeg", "image/png", "application/pdf"];
+    if (!allowed.includes(file.type)) {
+      setUploads(u => ({ ...u, [docKey]: { status: "error", progress: 0, error: "Only JPG, PNG, or PDF files accepted." } }));
+      return;
+    }
+    const maxBytes = maxMB * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setUploads(u => ({ ...u, [docKey]: { status: "error", progress: 0, error: `File too large — max ${maxMB} MB.` } }));
+      return;
+    }
+
+    setUploads(u => ({ ...u, [docKey]: { status: "uploading", progress: 0 } }));
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("docType", docType);
+    fd.append("driverName", form.driverName || "Applicant");
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setUploads(u => ({ ...u, [docKey]: { status: "uploading", progress: pct } }));
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (data.ok) {
+          setUploads(u => ({ ...u, [docKey]: { status: "done", progress: 100, fileName: data.fileName } }));
+        } else {
+          setUploads(u => ({ ...u, [docKey]: { status: "error", progress: 0, error: data.error } }));
+        }
+      } catch {
+        setUploads(u => ({ ...u, [docKey]: { status: "error", progress: 0, error: "Unexpected server response." } }));
+      }
+    };
+
+    xhr.onerror = () => {
+      setUploads(u => ({ ...u, [docKey]: { status: "error", progress: 0, error: "Network error — please try again." } }));
+    };
+
+    xhr.open("POST", "/api/upload");
+    xhr.send(fd);
+  };
 
   const upd = (k) => (e) => {
     const val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
@@ -1748,6 +1812,7 @@ function ReservationForm() {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
 
+    const docStatus = (key) => uploads[key].status === "done" ? "✓ Uploaded" : "— Not uploaded";
     const body = [
       "=== IRON GATE LOGISTICS — PARKING RESERVATION REQUEST ===",
       "",
@@ -1764,6 +1829,11 @@ function ReservationForm() {
       `TYPICAL SCHEDULE: ${form.schedule}`,
       `HAULS HAZMAT: ${form.hazmat}`,
       "",
+      "DOCUMENTS:",
+      `  Rig Photo      — ${docStatus("rig")}`,
+      `  Insurance      — ${docStatus("insurance")}`,
+      `  CDL            — ${docStatus("cdl")}`,
+      "",
       "Applicant acknowledged: This is a reservation request and not a binding lease.",
     ].join("\n");
 
@@ -1773,7 +1843,7 @@ function ReservationForm() {
 
   if (submitted) {
     const firstName = form.driverName.split(" ")[0];
-    return <SuccessScreen name={firstName} onReset={() => { setSubmitted(false); setForm(blank); }} type="reserve" />;
+    return <SuccessScreen name={firstName} onReset={() => { setSubmitted(false); setForm(blank); setUploads(blankUploads); }} type="reserve" />;
   }
 
   return (
@@ -1840,57 +1910,117 @@ function ReservationForm() {
         </div>
       </div>
 
-      {/* Document uploads */}
+      {/* Document uploads — Cloudinary */}
       <div style={{
         border: "1px solid rgba(45,108,179,0.2)",
         borderLeft: "3px solid var(--steel-blue)",
         background: "rgba(45,108,179,0.04)",
       }}>
-        <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid rgba(45,108,179,0.12)" }}>
+        {/* Header */}
+        <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid rgba(45,108,179,0.12)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
           <span style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--steel-blue)", fontWeight: 600 }}>
             Documents required
           </span>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.08em", color: "var(--navy-ink)", opacity: 0.5, marginLeft: 10 }}>
-            Opens our secure Google Drive folder
+          <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.06em", color: "var(--navy-ink)", opacity: 0.45 }}>
+            JPG · PNG · PDF &nbsp;|&nbsp; Stored securely
           </span>
         </div>
 
-        {[
-          { label: "Upload Photo of Rig" },
-          { label: "Upload Proof of Insurance" },
-          { label: "Upload CDL / Driver's License" },
-        ].map(({ label }, idx, arr) => (
-          <div key={label} style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "13px 16px",
-            borderBottom: idx < arr.length - 1 ? "1px solid rgba(26,44,78,0.08)" : "none",
-          }}>
-            <span style={{ fontSize: 14, color: "var(--navy-ink)" }}>{label.replace("Upload ", "")}</span>
-            <a
-              href="https://drive.google.com/drive/folders/10-qLaJ_vgk0_yQUfhYrWmvjF81rk30S_?usp=sharing"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "8px 14px",
-                fontFamily: "var(--sans)", fontWeight: 600, fontSize: 12,
-                letterSpacing: "0.05em", textTransform: "uppercase",
-                border: "1px solid rgba(26,44,78,0.25)",
-                color: "var(--navy)",
-                background: "transparent",
-                borderRadius: 2, cursor: "pointer",
-                textDecoration: "none",
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-              {label}
-            </a>
-          </div>
-        ))}
+        {DOC_CONFIG.map(({ key, label, accept, maxMB, docType }, idx) => {
+          const u = uploads[key];
+          const isDone      = u.status === "done";
+          const isUploading = u.status === "uploading";
+          const isError     = u.status === "error";
+
+          return (
+            <div key={key} style={{
+              padding: "14px 16px",
+              borderBottom: idx < DOC_CONFIG.length - 1 ? "1px solid rgba(26,44,78,0.07)" : "none",
+              background: isDone ? "rgba(34,197,94,0.04)" : "transparent",
+              transition: "background .4s ease",
+            }}>
+              {/* Row: icon + label + button */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                {/* Left */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <span style={{
+                    width: 18, height: 18, flexShrink: 0,
+                    color: isDone ? "#16a34a" : isError ? "var(--rust)" : "rgba(26,44,78,0.2)",
+                    transition: "color .3s",
+                  }}>
+                    {isError
+                      ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      : Icon.check
+                    }
+                  </span>
+                  <div>
+                    <div style={{ fontSize: 14, color: "var(--navy-ink)", fontWeight: isDone ? 600 : 400 }}>{label}</div>
+                    <div style={{ fontSize: 11, fontFamily: "var(--mono)", letterSpacing: "0.05em", marginTop: 1,
+                      color: isDone ? "#16a34a" : isError ? "var(--rust)" : "rgba(26,44,78,0.4)" }}>
+                      {isDone    ? "Uploaded successfully"
+                       : isError ? (u.error || "Upload failed")
+                       : `Max ${maxMB} MB`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: button (hidden while uploading) */}
+                {!isUploading && (
+                  <>
+                    <input
+                      type="file"
+                      id={`upload-${key}`}
+                      accept={accept}
+                      style={{ display: "none" }}
+                      onChange={e => { handleUpload(key, docType, maxMB, e.target.files[0]); e.target.value = ""; }}
+                    />
+                    <label htmlFor={`upload-${key}`} style={{
+                      display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+                      padding: "8px 14px",
+                      fontFamily: "var(--sans)", fontWeight: 600, fontSize: 12,
+                      letterSpacing: "0.05em", textTransform: "uppercase",
+                      border: "1px solid",
+                      borderColor: isDone ? "#16a34a" : isError ? "var(--rust)" : "rgba(26,44,78,0.25)",
+                      color: isDone ? "#16a34a" : isError ? "var(--rust)" : "var(--navy)",
+                      background: "transparent", borderRadius: 2, cursor: "pointer",
+                      transition: "border-color .2s, color .2s",
+                    }}>
+                      {isDone ? (
+                        "Replace"
+                      ) : (
+                        <>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                          </svg>
+                          {isError ? "Retry" : "Upload"}
+                        </>
+                      )}
+                    </label>
+                  </>
+                )}
+              </div>
+
+              {/* Progress bar (shown while uploading) */}
+              {isUploading && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                    <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--steel-blue)" }}>Uploading</span>
+                    <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--steel-blue)" }}>{u.progress}%</span>
+                  </div>
+                  <div style={{ height: 4, background: "rgba(45,108,179,0.15)", borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${u.progress}%`,
+                      background: "var(--steel-blue)",
+                      borderRadius: 2,
+                      transition: "width .1s linear",
+                    }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Acknowledgement */}

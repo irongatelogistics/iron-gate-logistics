@@ -1,98 +1,93 @@
-const express = require('express');
 const path = require('path');
-const fs = require('fs');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+const express = require('express');
 const multer = require('multer');
-const { google } = require('googleapis');
+const cloudinary = require('cloudinary').v2;
 const { Readable } = require('stream');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Google Drive auth ─────────────────────────────────────────────────────────
-const DRIVE_FOLDER_ID = '10-qLaJ_vgk0_yQUfhYrWmvjF81rk30S_';
-const REDIRECT_URI = 'http://localhost:3001/oauth2callback';
+// ── Cloudinary ────────────────────────────────────────────────────────────────
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-let _auth = null;
+const FOLDER = 'iron-gate-customers';
 
-function getAuth() {
-  if (_auth) return _auth;
+const DOC_LABELS = {
+  rig_photo: 'Rig Photo',
+  insurance: 'Proof of Insurance',
+  cdl:       'CDL',
+};
 
-  // Railway / production: set these three env vars from your token.json values.
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_REFRESH_TOKEN) {
-    const client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      REDIRECT_URI
-    );
-    client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
-    _auth = client;
-    return _auth;
-  }
+// Max sizes per doc type (bytes)
+const MAX_SIZES = {
+  rig_photo: 10 * 1024 * 1024,
+  insurance: 10 * 1024 * 1024,
+  cdl:        5 * 1024 * 1024,
+};
 
-  // Local dev: oauth_credentials.json + token.json (created by authorize.js).
-  const credsPath = path.join(__dirname, 'oauth_credentials.json');
-  const tokenPath = path.join(__dirname, 'token.json');
-
-  if (!fs.existsSync(credsPath)) {
-    throw new Error(
-      'oauth_credentials.json not found.\n' +
-      'Download it from GCP Console → APIs & Services → Credentials → your OAuth 2.0 Client ID.'
-    );
-  }
-  if (!fs.existsSync(tokenPath)) {
-    throw new Error('Not authorized yet. Run: node authorize.js');
-  }
-
-  const raw = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
-  const { client_id, client_secret } = raw.installed || raw.web;
-  const tokens = JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
-
-  const client = new google.auth.OAuth2(client_id, client_secret, REDIRECT_URI);
-  client.setCredentials(tokens);
-
-  // Persist refreshed access tokens automatically.
-  client.on('tokens', (refreshed) => {
-    const current = JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
-    fs.writeFileSync(tokenPath, JSON.stringify({ ...current, ...refreshed }, null, 2));
+function uploadToCloudinary(buffer, options) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+    Readable.from(buffer).pipe(stream);
   });
-
-  _auth = client;
-  return _auth;
 }
 
 // ── Upload endpoint ───────────────────────────────────────────────────────────
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // hard ceiling at 10 MB
 });
-
-const DOC_LABELS = {
-  rig_photo: 'Rig Photo',
-  insurance: 'Proof of Insurance',
-  cdl: 'CDL',
-};
 
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     const { docType, driverName } = req.body;
     const file = req.file;
 
-    if (!file) return res.status(400).json({ ok: false, error: 'No file received.' });
+    if (!file) {
+      return res.status(400).json({ ok: false, error: 'No file received.' });
+    }
 
-    const drive = google.drive({ version: 'v3', auth: getAuth() });
+    // Per-type size check (CDL capped at 5 MB)
+    const maxBytes = MAX_SIZES[docType] ?? MAX_SIZES.rig_photo;
+    if (file.size > maxBytes) {
+      const mb = Math.round(maxBytes / 1024 / 1024);
+      return res.status(400).json({ ok: false, error: `File too large — max ${mb} MB for this document.` });
+    }
+
+    // Validate MIME type
+    const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (!allowed.includes(file.mimetype)) {
+      return res.status(400).json({ ok: false, error: 'Only JPG, PNG, or PDF files are accepted.' });
+    }
+
     const label = DOC_LABELS[docType] || docType;
-    const ext = path.extname(file.originalname) || '';
-    const name = `${(driverName || 'Applicant').trim()} — ${label}${ext}`;
+    const safeName = (driverName || 'Applicant').replace(/[^a-z0-9_\-\s]/gi, '').trim();
+    const publicId = `${FOLDER}/${safeName}/${docType}_${Date.now()}`;
 
-    const response = await drive.files.create({
-      requestBody: { name, parents: [DRIVE_FOLDER_ID] },
-      media: { mimeType: file.mimetype, body: Readable.from(file.buffer) },
+    const result = await uploadToCloudinary(file.buffer, {
+      public_id:     publicId,
+      resource_type: 'auto',         // handles both images and PDFs
+      type:          'private',      // not publicly accessible via URL
+      tags:          [docType, safeName],
     });
 
-    res.json({ ok: true, fileId: response.data.id, fileName: name });
+    res.json({
+      ok:       true,
+      publicId: result.public_id,
+      fileName: `${safeName} — ${label}`,
+    });
   } catch (err) {
     console.error('[upload error]', err.message);
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: 'Upload failed. Please try again.' });
   }
 });
 
