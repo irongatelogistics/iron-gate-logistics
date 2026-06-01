@@ -7,6 +7,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
+const nodemailer = require('nodemailer');
 const { Readable } = require('stream');
 
 const app = express();
@@ -147,6 +148,180 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       ok:    false,
       error: err.message || 'Upload failed — check Railway logs for details.',
     });
+  }
+});
+
+// ── Gmail / Nodemailer config ─────────────────────────────────────────────────
+const NOTIFY_TO   = 'freightstorage@irongatelogi.com';
+const GMAIL_USER  = process.env.GMAIL_USER;
+const GMAIL_PASS  = process.env.GMAIL_APP_PASSWORD;
+
+if (!GMAIL_USER || !GMAIL_PASS) {
+  console.warn('[email] ⚠  GMAIL_USER or GMAIL_APP_PASSWORD not set — /api/notify will be disabled.');
+} else {
+  console.log('[email] ✓ Gmail credentials loaded —', GMAIL_USER);
+}
+
+const mailer = (GMAIL_USER && GMAIL_PASS)
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: GMAIL_USER, pass: GMAIL_PASS },
+    })
+  : null;
+
+// ── Reservation notification endpoint ────────────────────────────────────────
+app.use(express.json());
+
+app.post('/api/notify', async (req, res) => {
+  if (!mailer) {
+    return res.status(503).json({
+      ok: false,
+      error: 'Email service not configured. Add GMAIL_USER and GMAIL_APP_PASSWORD in Railway → Variables.',
+    });
+  }
+
+  const {
+    driverName, usdot, phone, email,
+    vehicleType, vehicleInfo, rigLength,
+    startDate, schedule, hazmat,
+    docRig, docInsurance, docCdl,
+  } = req.body || {};
+
+  if (!driverName || !phone || !email || !startDate) {
+    return res.status(400).json({ ok: false, error: 'Missing required fields.' });
+  }
+
+  const subject = `New Reservation Request — ${driverName}`;
+
+  // ── Plain-text version ───────────────────────────────────────────────────
+  const textBody = [
+    '=== IRON GATE LOGISTICS — PARKING RESERVATION REQUEST ===',
+    '',
+    `DRIVER / COMPANY NAME : ${driverName}`,
+    `USDOT & MC NUMBER     : ${usdot    || '—'}`,
+    `PHONE                 : ${phone}`,
+    `EMAIL                 : ${email}`,
+    '',
+    `VEHICLE TYPE          : ${vehicleType  || '—'}`,
+    `YEAR / MAKE / MODEL   : ${vehicleInfo  || '—'}`,
+    `LENGTH OF RIG         : ${rigLength    || '—'}`,
+    '',
+    `REQUESTED START DATE  : ${startDate}`,
+    `TYPICAL SCHEDULE      : ${schedule     || '—'}`,
+    `HAULS HAZMAT          : ${hazmat       || '—'}`,
+    '',
+    'DOCUMENTS:',
+    `  Rig Photo           : ${docRig       || '—'}`,
+    `  Proof of Insurance  : ${docInsurance || '—'}`,
+    `  CDL / Driver Lic.   : ${docCdl       || '—'}`,
+    '',
+    '—',
+    'Sent automatically from the Iron Gate Logistics website.',
+  ].join('\n');
+
+  // ── HTML version ─────────────────────────────────────────────────────────
+  const row = (label, value) =>
+    `<tr>
+       <td style="padding:10px 16px;font-family:monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;white-space:nowrap;border-bottom:1px solid #f3f4f6;">${label}</td>
+       <td style="padding:10px 16px;font-size:15px;color:#111827;border-bottom:1px solid #f3f4f6;">${value || '—'}</td>
+     </tr>`;
+
+  const docBadge = (val) => {
+    const uploaded = val && val.toLowerCase().includes('uploaded');
+    return uploaded
+      ? `<span style="display:inline-block;padding:2px 10px;background:#dcfce7;color:#166534;font-size:12px;border-radius:999px;font-family:monospace;">${val}</span>`
+      : `<span style="display:inline-block;padding:2px 10px;background:#f3f4f6;color:#6b7280;font-size:12px;border-radius:999px;font-family:monospace;">${val || 'Not uploaded'}</span>`;
+  };
+
+  const htmlBody = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#1a2c4e;padding:28px 32px;">
+            <p style="margin:0;font-family:monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#3a82d4;">Iron Gate Logistics</p>
+            <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#f4f1ec;letter-spacing:.01em;">New Reservation Request</h1>
+          </td>
+        </tr>
+
+        <!-- Driver info -->
+        <tr><td style="padding:24px 32px 4px;">
+          <p style="margin:0;font-family:monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#3a82d4;">Driver / Company</p>
+          <p style="margin:6px 0 0;font-size:26px;font-weight:700;color:#1a2c4e;">${driverName}</p>
+        </td></tr>
+
+        <!-- Details table -->
+        <tr><td style="padding:16px 32px 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+            ${row('USDOT &amp; MC', usdot)}
+            ${row('Phone', phone)}
+            ${row('Email', `<a href="mailto:${email}" style="color:#2d6cb3;">${email}</a>`)}
+            ${row('Vehicle Type', vehicleType)}
+            ${row('Year / Make / Model / Plate', vehicleInfo)}
+            ${row('Length of Rig', rigLength)}
+            ${row('Start Date', `<strong>${startDate}</strong>`)}
+            ${row('Typical Schedule', schedule)}
+            ${row('Hauls HazMat', hazmat === 'Yes'
+              ? '<strong style="color:#b91c1c;">Yes</strong>'
+              : hazmat)}
+          </table>
+        </td></tr>
+
+        <!-- Documents -->
+        <tr><td style="padding:24px 32px 0;">
+          <p style="margin:0 0 10px;font-family:monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#6b7280;">Documents</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+            <tr>
+              <td style="padding:10px 16px;font-size:14px;color:#374151;border-bottom:1px solid #f3f4f6;">Rig Photo</td>
+              <td style="padding:10px 16px;text-align:right;border-bottom:1px solid #f3f4f6;">${docBadge(docRig)}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 16px;font-size:14px;color:#374151;border-bottom:1px solid #f3f4f6;">Proof of Insurance</td>
+              <td style="padding:10px 16px;text-align:right;border-bottom:1px solid #f3f4f6;">${docBadge(docInsurance)}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 16px;font-size:14px;color:#374151;">CDL / Driver's License</td>
+              <td style="padding:10px 16px;text-align:right;">${docBadge(docCdl)}</td>
+            </tr>
+          </table>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:24px 32px 28px;">
+          <p style="margin:0;font-size:12px;color:#9ca3af;font-family:monospace;letter-spacing:.06em;">
+            Sent automatically from the Iron Gate Logistics website · ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', dateStyle: 'medium', timeStyle: 'short' })} PT
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  try {
+    await mailer.sendMail({
+      from:    `"Iron Gate Logistics" <${GMAIL_USER}>`,
+      to:      NOTIFY_TO,
+      replyTo: email,
+      subject,
+      text:    textBody,
+      html:    htmlBody,
+    });
+
+    console.log(`[email] ✓ Reservation notification sent for "${driverName}"`);
+    res.json({ ok: true });
+
+  } catch (err) {
+    console.error('[email] ✗ Failed to send notification:');
+    console.error('  message  :', err.message);
+    console.error('  code     :', err.code);
+    res.status(500).json({ ok: false, error: err.message || 'Failed to send email notification.' });
   }
 });
 

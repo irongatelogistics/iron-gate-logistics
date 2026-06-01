@@ -1609,7 +1609,7 @@ function SuccessScreen({ name, onReset, type }) {
       </p>
       {type === "reserve" && (
         <p style={{ marginTop: 12, fontSize: 13, opacity: 0.6, color: "var(--navy-ink)", fontFamily: "var(--mono)", letterSpacing: "0.08em" }}>
-          Please upload your documents to our Google Drive folder before your spot is confirmed.
+          Your documents have been submitted. We'll be in touch to confirm your spot.
         </p>
       )}
       <button onClick={onReset} className="btn btn-ghost" style={{ marginTop: 28 }}>
@@ -1726,6 +1726,8 @@ function ReservationForm() {
   const [form, setForm] = useState(blank);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   const [uploads, setUploads] = useState(blankUploads);
 
   const DOC_CONFIG = [
@@ -1807,43 +1809,49 @@ function ReservationForm() {
     return e;
   };
 
-  const onSubmit = (ev) => {
+  const onSubmit = async (ev) => {
     ev.preventDefault();
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
 
-    const docStatus = (key) => uploads[key].status === "done" ? "✓ Uploaded" : "— Not uploaded";
-    const body = [
-      "=== IRON GATE LOGISTICS — PARKING RESERVATION REQUEST ===",
-      "",
-      `DRIVER / COMPANY NAME: ${form.driverName}`,
-      `USDOT & MC NUMBER: ${form.usdot || "—"}`,
-      `PHONE: ${form.phone}`,
-      `EMAIL: ${form.email}`,
-      "",
-      `VEHICLE TYPE: ${form.vehicleType}`,
-      `VEHICLE YEAR / MAKE / MODEL / PLATE: ${form.vehicleInfo}`,
-      `LENGTH OF RIG: ${form.rigLength || "—"}`,
-      "",
-      `REQUESTED START DATE: ${form.startDate}`,
-      `TYPICAL SCHEDULE: ${form.schedule}`,
-      `HAULS HAZMAT: ${form.hazmat}`,
-      "",
-      "DOCUMENTS:",
-      `  Rig Photo      — ${docStatus("rig")}`,
-      `  Insurance      — ${docStatus("insurance")}`,
-      `  CDL            — ${docStatus("cdl")}`,
-      "",
-      "Applicant acknowledged: This is a reservation request and not a binding lease.",
-    ].join("\n");
+    setSubmitting(true);
+    setSubmitError(null);
 
-    window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent("Iron Gate Logistics — Parking Reservation Request: " + form.driverName)}&body=${encodeURIComponent(body)}`;
-    setSubmitted(true);
+    const docLabel = (key) => uploads[key].status === "done" ? "✓ Uploaded" : "Not uploaded";
+
+    try {
+      const resp = await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          driverName:    form.driverName,
+          usdot:         form.usdot,
+          phone:         form.phone,
+          email:         form.email,
+          vehicleType:   form.vehicleType,
+          vehicleInfo:   form.vehicleInfo,
+          rigLength:     form.rigLength,
+          startDate:     form.startDate,
+          schedule:      form.schedule,
+          hazmat:        form.hazmat,
+          docRig:        docLabel("rig"),
+          docInsurance:  docLabel("insurance"),
+          docCdl:        docLabel("cdl"),
+        }),
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || "Submission failed — please try again.");
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitError(err.message || "Something went wrong. Please try again or email us directly.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
     const firstName = form.driverName.split(" ")[0];
-    return <SuccessScreen name={firstName} onReset={() => { setSubmitted(false); setForm(blank); setUploads(blankUploads); }} type="reserve" />;
+    return <SuccessScreen name={firstName} onReset={() => { setSubmitted(false); setForm(blank); setUploads(blankUploads); setSubmitError(null); }} type="reserve" />;
   }
 
   return (
@@ -2037,12 +2045,31 @@ function ReservationForm() {
         {errors.acknowledged && <span className="err-msg" style={{ display: "block", marginTop: 4 }}>{errors.acknowledged}</span>}
       </div>
 
+      {submitError && (
+        <div style={{
+          padding: "12px 16px",
+          background: "rgba(185,28,28,0.06)",
+          border: "1px solid rgba(185,28,28,0.25)",
+          borderLeft: "3px solid #b91c1c",
+          fontSize: 14,
+          color: "#b91c1c",
+          lineHeight: 1.5,
+        }}>
+          <strong>Submission failed:</strong> {submitError}
+        </div>
+      )}
+
       <div>
-        <button type="submit" className="btn btn-accent btn-arrow" style={{ width: "100%", justifyContent: "center" }}>
-          Submit Reservation Request
+        <button
+          type="submit"
+          disabled={submitting}
+          className="btn btn-accent btn-arrow"
+          style={{ width: "100%", justifyContent: "center", opacity: submitting ? 0.7 : 1 }}
+        >
+          {submitting ? "Sending…" : "Submit Reservation Request"}
         </button>
         <p style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.5, marginTop: 12, textAlign: "center" }}>
-          Opens your email client · We confirm within one business day
+          We confirm within one business day
         </p>
       </div>
     </form>
