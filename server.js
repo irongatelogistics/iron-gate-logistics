@@ -121,8 +121,9 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
     const result = await uploadToCloudinary(file.buffer, {
       public_id:     publicId,
+      folder:        FOLDER,
       resource_type: 'auto',
-      type:          'private',
+      type:          'authenticated',
       tags:          [docType, safeName],
     });
 
