@@ -3,7 +3,15 @@
 
 const { useState, useEffect, useRef, useCallback } = React;
 
-
+// ── Banner-aware scroll offset ────────────────────────────────────────────────
+// Returns the total height of the fixed chrome (announcement banner + nav bar)
+// so smooth-scroll targets are never hidden behind either element.
+function getScrollOffset() {
+  const bannerH = parseInt(
+    getComputedStyle(document.documentElement).getPropertyValue('--banner-h') || '0'
+  ) || 0;
+  return 70 + bannerH; // 70 = nav bar height
+}
 
 // Map named image resources
 window.__resources = {
@@ -643,7 +651,7 @@ function Nav({ onCTAClick }) {
     const id = href.slice(1);
     const el = document.getElementById(id);
     if (el) {
-      window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+      window.scrollTo({ top: el.offsetTop - getScrollOffset(), behavior: "smooth" });
     }
     setMobileOpen(false);
   };
@@ -652,7 +660,7 @@ function Nav({ onCTAClick }) {
     <header
       style={{
         position: "fixed",
-        top: 0, left: 0, right: 0,
+        top: 'var(--banner-h, 0px)', left: 0, right: 0,
         zIndex: 50,
         background: scrolled ? "rgba(244, 241, 236, 0.92)" : "transparent",
         backdropFilter: scrolled ? "saturate(140%) blur(10px)" : "none",
@@ -787,7 +795,7 @@ function Hero({ variant = "editorial" }) {
         display: "flex",
         alignItems: "flex-end",
         paddingBottom: 80,
-        paddingTop: 120,
+        paddingTop: 'calc(var(--banner-h, 0px) + 80px)',
         overflow: "hidden",
         color: "var(--bone)",
       }}>
@@ -825,7 +833,7 @@ function Hero({ variant = "editorial" }) {
   return (
     <section id="top" style={{
       position: "relative",
-      paddingTop: 140,
+      paddingTop: 'calc(var(--banner-h, 0px) + 90px)',
       paddingBottom: 80,
       overflow: "hidden",
     }}>
@@ -1224,7 +1232,7 @@ function Rates() {
                 onClick={(e) => {
                   e.preventDefault();
                   const el = document.getElementById("contact");
-                  if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+                  if (el) window.scrollTo({ top: el.offsetTop - getScrollOffset(), behavior: "smooth" });
                 }}
                 className="btn btn-arrow"
                 style={{
@@ -1289,7 +1297,7 @@ function Rates() {
             onClick={(e) => {
               e.preventDefault();
               const el = document.getElementById("contact");
-              if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+              if (el) window.scrollTo({ top: el.offsetTop - getScrollOffset(), behavior: "smooth" });
             }}
             className="btn btn-accent btn-arrow rv-cta"
           >
