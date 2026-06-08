@@ -1629,7 +1629,7 @@ function SuccessScreen({ name, onReset, type }) {
 
 // ── INQUIRY FORM ─────────────────────────────────────────────
 function InquiryForm() {
-  const blank = { firstName: "", lastName: "", email: "", phone: "", serviceType: "Tractor & Trailer — $250/mo", message: "" };
+  const blank = { firstName: "", lastName: "", email: "", phone: "", serviceType: "Tractor & Trailer — $250/mo", message: "", wasReferred: "", referredBy: "" };
   const [form, setForm] = useState(blank);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -1654,11 +1654,16 @@ function InquiryForm() {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
 
+    const referralLine = form.wasReferred === "Yes" && form.referredBy.trim()
+      ? form.referredBy.trim()
+      : (form.wasReferred === "Yes" ? "Yes (name not provided)" : "None");
+
     const body = [
       `NAME: ${form.firstName} ${form.lastName}`,
       `EMAIL: ${form.email}`,
       `PHONE: ${form.phone || "—"}`,
       `SERVICE: ${form.serviceType}`,
+      `REFERRED BY: ${referralLine}`,
       ``,
       `MESSAGE:`,
       form.message,
@@ -1705,6 +1710,27 @@ function InquiryForm() {
           style={{ minHeight: 110 }}
         />
       </Field>
+
+      {/* Referral */}
+      <div style={{ padding: "16px", border: "1px solid rgba(26,44,78,0.12)", background: "var(--bone-soft)" }}>
+        <RadioGroup
+          label="Were you referred by a current Iron Gate Logistics customer?"
+          name="wasReferred-inquiry"
+          options={["Yes", "No"]}
+          value={form.wasReferred}
+          onChange={(v) => { setForm(f => ({ ...f, wasReferred: v, referredBy: v === "No" ? "" : f.referredBy })); }}
+        />
+        {form.wasReferred === "Yes" && (
+          <div style={{ marginTop: 14 }}>
+            <input
+              value={form.referredBy}
+              onChange={upd("referredBy")}
+              placeholder="Enter the name of the customer who referred you"
+            />
+          </div>
+        )}
+      </div>
+
       <div>
         <button type="submit" className="btn btn-primary btn-arrow" style={{ width: "100%", justifyContent: "center" }}>
           Send Inquiry
@@ -1723,6 +1749,7 @@ function ReservationForm() {
     driverName: "", usdot: "", phone: "", email: "",
     vehicleType: "Full Combo", vehicleInfo: "", rigLength: "",
     startDate: "", schedule: "Daily In/Out", hazmat: "No",
+    wasReferred: "", referredBy: "",
     acknowledged: false,
   };
   const blankUploads = {
@@ -1845,6 +1872,9 @@ function ReservationForm() {
           docRig:        docLabel("rig"),
           docInsurance:  docLabel("insurance"),
           docCdl:        docLabel("cdl"),
+          referredBy:    form.wasReferred === "Yes" && form.referredBy.trim()
+                           ? form.referredBy.trim()
+                           : (form.wasReferred === "Yes" ? "Yes (name not provided)" : "None"),
         }),
       });
       const data = await resp.json();
@@ -1924,6 +1954,26 @@ function ReservationForm() {
             onChange={(v) => updRadio("hazmat", v)}
           />
         </div>
+      </div>
+
+      {/* Referral */}
+      <div style={{ padding: "16px", border: "1px solid rgba(26,44,78,0.12)", background: "var(--bone-soft)" }}>
+        <RadioGroup
+          label="Were you referred by a current Iron Gate Logistics customer?"
+          name="wasReferred-reserve"
+          options={["Yes", "No"]}
+          value={form.wasReferred}
+          onChange={(v) => { updRadio("wasReferred", v); if (v === "No") setForm(f => ({ ...f, referredBy: "" })); }}
+        />
+        {form.wasReferred === "Yes" && (
+          <div style={{ marginTop: 14 }}>
+            <input
+              value={form.referredBy}
+              onChange={upd("referredBy")}
+              placeholder="Enter the name of the customer who referred you"
+            />
+          </div>
+        )}
       </div>
 
       {/* Document uploads — Cloudinary */}

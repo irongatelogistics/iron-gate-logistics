@@ -194,6 +194,7 @@ app.post('/api/notify', async (req, res) => {
     vehicleType, vehicleInfo, rigLength,
     startDate, schedule, hazmat,
     docRig, docInsurance, docCdl,
+    referredBy,
   } = req.body || {};
 
   if (!driverName || !phone || !email || !startDate) {
@@ -218,6 +219,7 @@ app.post('/api/notify', async (req, res) => {
     `REQUESTED START DATE  : ${startDate}`,
     `TYPICAL SCHEDULE      : ${schedule     || '—'}`,
     `HAULS HAZMAT          : ${hazmat       || '—'}`,
+    `REFERRED BY           : ${referredBy  || 'None'}`,
     '',
     'DOCUMENTS:',
     `  Rig Photo           : ${docRig       || '—'}`,
@@ -278,6 +280,9 @@ app.post('/api/notify', async (req, res) => {
             ${row('Hauls HazMat', hazmat === 'Yes'
               ? '<strong style="color:#b91c1c;">Yes</strong>'
               : hazmat)}
+            ${row('Referred By', referredBy && referredBy !== 'None'
+              ? `<strong style="color:#166534;">${referredBy}</strong>`
+              : '<span style="color:#9ca3af;">None</span>')}
           </table>
         </td></tr>
 
