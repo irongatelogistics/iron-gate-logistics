@@ -63,14 +63,6 @@ function uploadToCloudinary(buffer, options) {
   });
 }
 
-// ── Force HTTPS — redirect HTTP → HTTPS (Railway sets x-forwarded-proto) ─────
-app.use((req, res, next) => {
-  if (req.headers['x-forwarded-proto'] === 'http') {
-    return res.redirect(301, 'https://' + req.headers.host + req.url);
-  }
-  next();
-});
-
 // ── Health check — confirms env vars are loaded without exposing values ───────
 app.get('/api/health', (req, res) => {
   const status = Object.fromEntries(
