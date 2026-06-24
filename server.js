@@ -63,6 +63,20 @@ function uploadToCloudinary(buffer, options) {
   });
 }
 
+// ── Force HTTPS in production (Railway sets NODE_ENV and x-forwarded-proto) ──
+app.use((req, res, next) => {
+  // Only redirect if Railway is telling us the original request was HTTP
+  // AND we're in production (not local dev where this header won't exist)
+  if (
+    process.env.NODE_ENV === 'production' &&
+    req.headers['x-forwarded-proto'] &&
+    req.headers['x-forwarded-proto'] !== 'https'
+  ) {
+    return res.redirect(301, 'https://' + req.headers.host + req.url);
+  }
+  next();
+});
+
 // ── Health check — confirms env vars are loaded without exposing values ───────
 app.get('/api/health', (req, res) => {
   const status = Object.fromEntries(
