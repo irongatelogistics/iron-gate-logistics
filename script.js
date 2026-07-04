@@ -1449,7 +1449,7 @@ function Location() {
                 <dt style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.6 }}>Nearest Exit</dt>
                 <dd style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.4 }}>
                   I-5 Cottage Grove<br/>
-                  Exit 174
+                  Exit 182
                 </dd>
               </div>
               <div>
@@ -1542,7 +1542,7 @@ function StylizedMap() {
           <circle r="4" fill="#f4f1ec"/>
           <text x="22" y="-6" fill="#f4f1ec" fontFamily="var(--display)" fontSize="16" letterSpacing="0.5">IRON GATE</text>
           <text x="22" y="10" fill="#3a82d4" fontFamily="var(--mono)" fontSize="10" letterSpacing="2">COTTAGE GROVE, OR</text>
-          <text x="22" y="24" fill="#b8c2cc" fontFamily="var(--mono)" fontSize="9" letterSpacing="1.5" opacity="0.7">EXIT 174 — I-5</text>
+          <text x="22" y="24" fill="#b8c2cc" fontFamily="var(--mono)" fontSize="9" letterSpacing="1.5" opacity="0.7">EXIT 182 — I-5</text>
         </g>
       </svg>
 
