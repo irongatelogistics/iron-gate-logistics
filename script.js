@@ -18,6 +18,7 @@ window.__resources = {
   logoMark: "assets/logo-mark.png",
   logoLockup: "assets/logo-lockup.png",
   handshake: "assets/handshake.png",
+  onTheRoad: "assets/on-the-road.jpg",
 };
 
 // ═══════════════════ TWEAKS-PANEL ═══════════════════
@@ -1361,7 +1362,11 @@ function WhyUs() {
 
             <div className="reveal" style={{ marginTop: 32, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <PhotoPlaceholder label="AERIAL — YARD" icon="fleet" aspect="1 / 1" />
-              <PhotoPlaceholder label="ON THE ROAD" icon="truck" aspect="1 / 1" />
+              <img
+                src={(window.__resources && window.__resources.onTheRoad) || "assets/on-the-road.jpg"}
+                alt="Semi-truck on a forested mountain highway at golden hour"
+                style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }}
+              />
             </div>
           </div>
 
