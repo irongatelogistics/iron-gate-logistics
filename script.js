@@ -1424,7 +1424,7 @@ function Location() {
               On the I-5<br/>corridor.
             </h2>
             <p className="reveal" style={{ marginTop: 24, fontSize: 17, lineHeight: 1.6, color: "var(--navy-ink)", opacity: 0.8, maxWidth: 460 }}>
-              Iron Gate sits in Cottage Grove, Oregon — minutes off Interstate 5 between Eugene and the California border. A natural overnight stop on the West Coast freight corridor.
+              Iron Gate sits in Cottage Grove, Oregon — minutes off Interstate 5 between Eugene and the California border. A natural stop on the West Coast freight corridor.
             </p>
 
             <dl className="reveal" style={{
