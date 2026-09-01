@@ -20,6 +20,7 @@ window.__resources = {
   handshake: "assets/handshake.png",
   onTheRoad: "assets/on-the-road.jpg",
   lotGoldenHour: "assets/lot-golden-hour.jpg",
+  aerialYard: "assets/aerial-yard.jpg",
 };
 
 // ═══════════════════ TWEAKS-PANEL ═══════════════════
@@ -1366,7 +1367,11 @@ function WhyUs() {
             </h2>
 
             <div className="reveal" style={{ marginTop: 32, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <PhotoPlaceholder label="AERIAL — YARD" icon="fleet" aspect="1 / 1" />
+              <img
+                src={(window.__resources && window.__resources.aerialYard) || "assets/aerial-yard.jpg"}
+                alt="Semi-truck entering the Iron Gate Logistics gated yard"
+                style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }}
+              />
               <img
                 src={(window.__resources && window.__resources.onTheRoad) || "assets/on-the-road.jpg"}
                 alt="Semi-truck on a forested mountain highway at golden hour"
