@@ -19,6 +19,7 @@ window.__resources = {
   logoLockup: "assets/logo-lockup.png",
   handshake: "assets/handshake.png",
   onTheRoad: "assets/on-the-road.jpg",
+  lotGoldenHour: "assets/lot-golden-hour.jpg",
 };
 
 // ═══════════════════ TWEAKS-PANEL ═══════════════════
@@ -872,7 +873,11 @@ function Hero({ variant = "editorial" }) {
           </div>
 
           <div className="reveal" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <PhotoPlaceholder label="01 — LOT AT GOLDEN HOUR" icon="truck" aspect="4 / 3" />
+            <img
+              src={(window.__resources && window.__resources.lotGoldenHour) || "assets/lot-golden-hour.jpg"}
+              alt="Iron Gate Logistics parking lot with semi-trucks parked in the golden-hour sun, forested hills in the background"
+              style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", display: "block" }}
+            />
             <p style={{ fontSize: 17, lineHeight: 1.6, color: "var(--navy-ink)", maxWidth: 460 }}>
               Fenced. Lit. Monitored 24/7. Built specifically for semi-trucks and trailers — wide lanes, easy access, no tight turns. We park rigs for owner-operators and fleets along the I-5 corridor.
             </p>
