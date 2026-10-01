@@ -883,7 +883,7 @@ function Hero({ variant = "editorial" }) {
               Fenced. Lit. Monitored 24/7. Built specifically for semi-trucks and trailers — wide lanes, easy access, no tight turns. We park rigs for owner-operators and fleets along the I-5 corridor.
             </p>
             <p style={{ fontSize: 15, lineHeight: 1.6, color: "var(--navy-ink)", opacity: 0.7, maxWidth: 460 }}>
-              Serving owner-operators and fleets in Cottage Grove, Eugene, Springfield, and Creswell — just off I-5 Exit 182, minutes from the Eugene/Springfield metro.
+              Serving owner-operators and fleets in Cottage Grove, Eugene, Springfield, and Creswell — just off I-5 Exit 174 or 182, minutes from the Eugene/Springfield metro.
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <a href="#rates" className="btn btn-primary btn-arrow">Reserve a spot</a>
@@ -1470,7 +1470,7 @@ function Location() {
                 <dt style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.6 }}>Nearest Exit</dt>
                 <dd style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.4 }}>
                   I-5 Cottage Grove<br/>
-                  Exit 182
+                  Exit 174 or 182
                 </dd>
               </div>
               <div>
@@ -1563,7 +1563,7 @@ function StylizedMap() {
           <circle r="4" fill="#f4f1ec"/>
           <text x="22" y="-6" fill="#f4f1ec" fontFamily="var(--display)" fontSize="16" letterSpacing="0.5">IRON GATE</text>
           <text x="22" y="10" fill="#3a82d4" fontFamily="var(--mono)" fontSize="10" letterSpacing="2">COTTAGE GROVE, OR</text>
-          <text x="22" y="24" fill="#b8c2cc" fontFamily="var(--mono)" fontSize="9" letterSpacing="1.5" opacity="0.7">EXIT 182 — I-5</text>
+          <text x="22" y="24" fill="#b8c2cc" fontFamily="var(--mono)" fontSize="9" letterSpacing="1.5" opacity="0.7">EXIT 174/182 — I-5</text>
         </g>
       </svg>
 
@@ -1590,7 +1590,7 @@ function FAQ() {
   const faqs = [
     {
       q: "Is Iron Gate close to Eugene?",
-      a: "Yes — we're just off I-5 Exit 182 in Cottage Grove, a short drive south of Eugene and Springfield. Easy on, easy off, no city traffic to fight.",
+      a: "Yes — we're just off I-5 Exit 174 or 182 in Cottage Grove, a short drive south of Eugene and Springfield. Easy on, easy off, no city traffic to fight.",
     },
     {
       q: "Do you have truck parking near Creswell?",
