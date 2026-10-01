@@ -882,6 +882,9 @@ function Hero({ variant = "editorial" }) {
             <p style={{ fontSize: 17, lineHeight: 1.6, color: "var(--navy-ink)", maxWidth: 460 }}>
               Fenced. Lit. Monitored 24/7. Built specifically for semi-trucks and trailers — wide lanes, easy access, no tight turns. We park rigs for owner-operators and fleets along the I-5 corridor.
             </p>
+            <p style={{ fontSize: 15, lineHeight: 1.6, color: "var(--navy-ink)", opacity: 0.7, maxWidth: 460 }}>
+              Serving owner-operators and fleets in Cottage Grove, Eugene, Springfield, and Creswell — just off I-5 Exit 182, minutes from the Eugene/Springfield metro.
+            </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <a href="#rates" className="btn btn-primary btn-arrow">Reserve a spot</a>
               <a href="#why" className="btn btn-ghost">Why Iron Gate</a>
@@ -1436,6 +1439,9 @@ function Location() {
             <p className="reveal" style={{ marginTop: 24, fontSize: 17, lineHeight: 1.6, color: "var(--navy-ink)", opacity: 0.8, maxWidth: 460 }}>
               Iron Gate sits in Cottage Grove, Oregon — minutes off Interstate 5 between Eugene and the California border. A natural stop on the West Coast freight corridor.
             </p>
+            <p className="reveal" style={{ marginTop: 16, fontSize: 15, lineHeight: 1.6, color: "var(--navy-ink)", opacity: 0.7, maxWidth: 460 }}>
+              Easy reach for drivers based in or passing through Eugene, Springfield, and Creswell — a natural stop on the West Coast freight corridor without fighting city traffic.
+            </p>
 
             <dl className="reveal" style={{
               marginTop: 32,
@@ -1574,6 +1580,56 @@ function StylizedMap() {
         N ↑ — Pacific Northwest
       </div>
     </div>
+  );
+}
+
+// =============================================================
+// FAQ
+// =============================================================
+function FAQ() {
+  const faqs = [
+    {
+      q: "Is Iron Gate close to Eugene?",
+      a: "Yes — we're just off I-5 Exit 182 in Cottage Grove, a short drive south of Eugene and Springfield. Easy on, easy off, no city traffic to fight.",
+    },
+    {
+      q: "Do you have truck parking near Creswell?",
+      a: "Iron Gate is the closest secure, fenced, 24/7-monitored truck and trailer lot serving the Creswell area — minutes off I-5.",
+    },
+    {
+      q: "Can I park a single truck, or only fleets?",
+      a: "Both. We work with owner-operators parking one rig and fleets needing multiple reserved spaces — monthly, weekly, and custom fleet pricing all available.",
+    },
+    {
+      q: "Is the lot secure?",
+      a: "Fully fenced, lit at night, and monitored 24/7. Built specifically for semis — wide lanes, no tight turns.",
+    },
+    {
+      q: "How do I reserve a spot?",
+      a: "Email freightstorage@irongatelogi.com or call (971) 245-0654 with your rig info and start date — we'll confirm availability within one business day.",
+    },
+  ];
+  return (
+    <section id="faq" className="section" style={{ background: "var(--bone-soft)" }}>
+      <div className="container">
+        <span className="eyebrow reveal">Questions</span>
+        <h2 className="h-display reveal" style={{ fontSize: "clamp(40px, 5vw, 76px)", marginTop: 16, color: "var(--navy-ink)", maxWidth: 640 }}>
+          Frequently asked<br/>questions.
+        </h2>
+
+        <div style={{ marginTop: 48, maxWidth: 760 }}>
+          {faqs.map((f, i) => (
+            <div key={i} className="reveal" style={{
+              padding: "28px 0",
+              borderBottom: "1px solid rgba(26,44,78,0.15)",
+            }}>
+              <h3 className="h-serif" style={{ fontSize: 22, color: "var(--navy-ink)" }}>{f.q}</h3>
+              <p style={{ marginTop: 10, fontSize: 16, lineHeight: 1.55, color: "var(--navy-ink)", opacity: 0.78 }}>{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -2041,6 +2097,7 @@ function App() {
         <Rates />
         <WhyUs />
         <Location />
+        <FAQ />
         <Contact />
       </main>
       <Footer />
