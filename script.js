@@ -1606,7 +1606,7 @@ function FAQ() {
     },
     {
       q: "How do I reserve a spot?",
-      a: "Email freightstorage@irongatelogi.com or call (971) 245-0654 with your rig info and start date — we'll confirm availability within one business day.",
+      a: "The quickest way is to fill out Reserve a Spot right here on the site. You can also email freightstorage@irongatelogi.com or call (971) 245-0654 with your rig info and start date — we'll confirm availability within one business day.",
     },
   ];
   return (
